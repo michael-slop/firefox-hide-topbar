@@ -72,6 +72,13 @@ destructive, which is the behaviour you want from something a friend sent you.
 > `userChrome.css.txt`. Explorer hides known extensions by default.
 > View → Show → File name extensions, and check.
 
+> **If you have more than one profile, use `about:support`.** Do not pick a
+> profile folder by eye, and do not trust `Default=1` in `profiles.ini` — that is
+> a legacy marker, and the profile Firefox actually launches is the one named by
+> the `[Install…]` section. They can be different, and when they are, everything
+> looks installed while nothing happens. `about:support` → Profile Folder always
+> points at the live one.
+
 Works the same on Windows, Linux and macOS — the rules are about Firefox's own
 UI, which is identical everywhere. Only the profile path differs, and
 `about:support` finds it for you.
@@ -199,7 +206,7 @@ element — came from extracting Firefox's `omni.ja` and reading
 flag on the root window) is wrong, and assuming it would have produced a rule
 that never worked.
 
-**What the AI got wrong, twice:**
+**What the AI got wrong, three times:**
 
 1. The first "safe" version nested `:has()` inside `:has()`. That is invalid CSS.
    Firefox threw the entire rule away without a word, and the toolbar simply
@@ -210,7 +217,15 @@ that never worked.
    the wrong thing to ship. A screenshot showed a blank window, and the rule was
    rebuilt to target `#nav-bar` alone.
 
-Both were caught by *looking at the thing*, not by reasoning harder about it.
+3. Rolling this out to three machines, it reported one of them "deployed and
+   verified" while every write had landed in a profile that machine never opens.
+   `profiles.ini` listed that profile with `Default=1`, which looks decisive and
+   is not — the `[Install…]` section names the profile Firefox actually launches.
+   The check that had been run was "are the rules in the file", which was true
+   and meaningless. The check that found it was "which profile does the running
+   process have open", read from `/proc/<pid>/fd`.
+
+All three were caught by *looking at the thing*, not by reasoning harder about it.
 That is the honest lesson of this repo, and the reason the Verification section
 above reports measured pixel heights rather than "should work".
 

@@ -30,11 +30,11 @@
  *   Troubleshoot Mode starts with all of this switched off:
  *   hold Shift while launching (Windows/Linux), or Option (macOS).
  *
- * WHY THERE ARE TWO RULES
- *   Firefox has two different sidebars, and they hide in two different ways.
- *   Each rule below matches only its own setup and is inert in the other, so
- *   you can paste both and let the browser sort it out. See the notes on
- *   each one -- especially the warning in rule 2.
+ * WHY THERE ARE THREE RULES
+ *   Firefox has two different sidebars and they hide in two different ways, so
+ *   there is a rule for each plus a guard that keeps them apart. They sort
+ *   themselves out -- nothing to configure. On a setup that matches neither,
+ *   the file simply does nothing. See the notes on each rule below.
  * ==========================================================================
  */
 
