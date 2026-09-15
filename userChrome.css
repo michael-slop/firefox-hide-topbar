@@ -1,0 +1,125 @@
+/* ==========================================================================
+ * Hide the top toolbar along with the sidebar.
+ *
+ * Toggle the sidebar (Ctrl+Alt+Z, or the sidebar button) and the whole top
+ * toolbar goes with it -- address bar, hamburger, min/max/close -- leaving
+ * just the page. Toggle again and it all comes back.
+ *
+ * Tested on Firefox 155. Works on Windows, Linux and macOS alike: the rules
+ * below are about Firefox's own UI, which is the same on every platform.
+ *
+ * INSTALL
+ *   1. Open about:config, accept the warning, search for
+ *        toolkit.legacyUserProfileCustomizations.stylesheets
+ *      and set it to TRUE. (Firefox ignores this file unless you do.)
+ *   2. Open about:support, find "Profile Folder", click "Open Folder".
+ *   3. In that folder make a folder called exactly  chrome
+ *   4. Put this file inside it, named exactly  userChrome.css
+ *      (On Windows make sure it is not secretly userChrome.css.txt --
+ *      turn on file extensions in Explorer if you are unsure.)
+ *   5. QUIT Firefox completely and start it again. This file is only read
+ *      at startup; reloading or opening a new window will not pick it up.
+ *
+ * UNDO
+ *   Delete the file (or set that pref back to false) and restart. That is
+ *   the whole of it -- nothing here changes Firefox itself, and an update
+ *   will never be blocked by it.
+ *
+ * IF YOU END UP WITH NO TOOLBAR AND WANT OUT
+ *   Ctrl+Alt+Z brings it back. If you are truly stuck, Firefox's own
+ *   Troubleshoot Mode starts with all of this switched off:
+ *   hold Shift while launching (Windows/Linux), or Option (macOS).
+ *
+ * WHY THERE ARE TWO RULES
+ *   Firefox has two different sidebars, and they hide in two different ways.
+ *   Each rule below matches only its own setup and is inert in the other, so
+ *   you can paste both and let the browser sort it out. See the notes on
+ *   each one -- especially the warning in rule 2.
+ * ==========================================================================
+ */
+
+
+/* --------------------------------------------------------------------------
+ * RULE 1 -- the new sidebar with VERTICAL TABS
+ *
+ * When your tabs run down the side. Hiding the sidebar sets hidden="true" on
+ * #sidebar-container, so we collapse the toolbar whenever that is the case.
+ *
+ * This rule hides the toolbar whenever the sidebar is hidden. On its own that
+ * would be wrong for horizontal tabs (see rule 1b), so it comes as a PAIR.
+ *
+ * NOTE FOR ANYONE EDITING THIS: you cannot put :has() inside :has() -- it is
+ * a syntax error and Firefox throws the whole rule away silently, which looks
+ * exactly like "the tweak does nothing". That is why the guard is a separate
+ * rule below instead of being folded into this selector. Verified against a
+ * live Firefox 155: the nested form raises
+ *   SyntaxError: ... is not a valid selector
+ * --------------------------------------------------------------------------
+ */
+
+#navigator-toolbox:has(~ #browser > #sidebar-container[hidden]) {
+  visibility: collapse !important;
+}
+
+/* RULE 1b -- the guard that makes rule 1 safe.
+ *
+ * With HORIZONTAL tabs, Firefox keeps #sidebar-container hidden permanently
+ * (its own source calls this "Horizontal-tabs hide sidebar mode"), so rule 1
+ * would match forever and the toolbar would never come back -- no address
+ * bar, no menu, no way to tell why.
+ *
+ * So: put the toolbar back unless the tab strip really has moved into the
+ * sidebar. #tabbrowser-tabs is MOVED, not copied, so finding it under
+ * #vertical-tabs is proof of genuine vertical-tabs mode.
+ */
+
+#navigator-toolbox:not(:has(~ #browser #vertical-tabs > #tabbrowser-tabs)) {
+  visibility: visible !important;
+}
+
+
+/* --------------------------------------------------------------------------
+ * RULE 2 -- the classic sidebar with HORIZONTAL TABS
+ *
+ * When your tabs run along the top. Here the thing that opens and closes is
+ * the sidebar PANEL, #sidebar-box -- bookmarks, history and so on. Firefox
+ * keeps #sidebar-container hidden permanently in this mode, which is why
+ * rule 1 must not be allowed to see it.
+ *
+ * This one hides ONLY the address-bar row (#nav-bar) and deliberately leaves
+ * the tab strip alone. With horizontal tabs your tabs live up there too, and
+ * an earlier draft that collapsed the whole toolbar left a window with no
+ * tabs, no address bar and no menu -- it looked like a broken browser. So
+ * this rule takes the address bar and stops there.
+ *
+ * Note the selector shape: #nav-bar is INSIDE the toolbox while #browser is
+ * outside it, so the two are not siblings and "~" never reaches. Matching the
+ * toolbox and then descending to #nav-bar is what works. Measured on a live
+ * Firefox 155: the sibling form never matched at all, this one goes 30px ->
+ * collapsed when the panel closes and back when it opens, with #TabsToolbar
+ * steady at 44px throughout.
+ *
+ * Don't want it? Delete this rule; rule 1 is independent of it.
+ * --------------------------------------------------------------------------
+ */
+
+#navigator-toolbox:has(~ #browser > #sidebar-box[hidden]) #nav-bar {
+  visibility: collapse !important;
+}
+
+
+/* --------------------------------------------------------------------------
+ * Notes, in case this stops working one day.
+ *
+ * These rules lean on Firefox's internal element names (#navigator-toolbox,
+ * #sidebar-container, #sidebar-box). Those are not a public API -- Mozilla
+ * renames them now and then, and when they do, a rule like this quietly stops
+ * doing anything. That is the normal life of a userChrome.css tweak; it is
+ * not a sign anything is broken.
+ *
+ * visibility:collapse is deliberate. display:none makes Firefox rebuild the
+ * toolbar every single toggle, and height:0 leaves the buttons invisible but
+ * still clickable and focusable. collapse removes it from the layout AND from
+ * the keyboard, which is what you want.
+ * --------------------------------------------------------------------------
+ */
