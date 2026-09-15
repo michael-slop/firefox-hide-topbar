@@ -30,11 +30,16 @@
  *   Troubleshoot Mode starts with all of this switched off:
  *   hold Shift while launching (Windows/Linux), or Option (macOS).
  *
- * WHY THERE ARE THREE RULES
- *   Firefox has two different sidebars and they hide in two different ways, so
- *   there is a rule for each plus a guard that keeps them apart. They sort
- *   themselves out -- nothing to configure. On a setup that matches neither,
- *   the file simply does nothing. See the notes on each rule below.
+ * WHO THIS IS FOR
+ *   Firefox's newer sidebar with VERTICAL TABS -- tabs down the side. That is
+ *   the setup these two rules act on, and they come as a pair: one hides, one
+ *   guards. Nothing to configure.
+ *
+ *   On ordinary tabs-along-the-top this file does NOTHING, on purpose. An
+ *   earlier version tried to cover that case too and got it wrong twice: once
+ *   hiding the tab strip along with the address bar, and once collapsing the
+ *   address bar permanently on vertical-tabs setups. Doing nothing is the
+ *   honest behaviour for a layout this cannot serve properly.
  * ==========================================================================
  */
 
@@ -79,40 +84,10 @@
 
 
 /* --------------------------------------------------------------------------
- * RULE 2 -- the classic sidebar with HORIZONTAL TABS
- *
- * When your tabs run along the top. Here the thing that opens and closes is
- * the sidebar PANEL, #sidebar-box -- bookmarks, history and so on. Firefox
- * keeps #sidebar-container hidden permanently in this mode, which is why
- * rule 1 must not be allowed to see it.
- *
- * This one hides ONLY the address-bar row (#nav-bar) and deliberately leaves
- * the tab strip alone. With horizontal tabs your tabs live up there too, and
- * an earlier draft that collapsed the whole toolbar left a window with no
- * tabs, no address bar and no menu -- it looked like a broken browser. So
- * this rule takes the address bar and stops there.
- *
- * Note the selector shape: #nav-bar is INSIDE the toolbox while #browser is
- * outside it, so the two are not siblings and "~" never reaches. Matching the
- * toolbox and then descending to #nav-bar is what works. Measured on a live
- * Firefox 155: the sibling form never matched at all, this one goes 30px ->
- * collapsed when the panel closes and back when it opens, with #TabsToolbar
- * steady at 44px throughout.
- *
- * Don't want it? Delete this rule; rule 1 is independent of it.
- * --------------------------------------------------------------------------
- */
-
-#navigator-toolbox:has(~ #browser > #sidebar-box[hidden]) #nav-bar {
-  visibility: collapse !important;
-}
-
-
-/* --------------------------------------------------------------------------
  * Notes, in case this stops working one day.
  *
  * These rules lean on Firefox's internal element names (#navigator-toolbox,
- * #sidebar-container, #sidebar-box). Those are not a public API -- Mozilla
+ * #sidebar-container, #vertical-tabs). Those are not a public API -- Mozilla
  * renames them now and then, and when they do, a rule like this quietly stops
  * doing anything. That is the normal life of a userChrome.css tweak; it is
  * not a sign anything is broken.

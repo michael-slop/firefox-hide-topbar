@@ -12,9 +12,10 @@ file.
 > This was built by [Claude Code](https://claude.com/claude-code) (Anthropic's
 > Claude Opus 5) working against Firefox's actual shipped source, with a human
 > asking for it, choosing the behaviour, and confirming it worked on real
-> machines. The full story — including the two bugs the AI shipped and had to be
-> caught testing — is in **[How this was made](#how-this-was-made)** at the
-> bottom. Read the CSS before you run it; it is 3 rules and they are commented.
+> machines. The full story — including the bugs the AI shipped, one of which
+> reached those machines — is in **[How this was made](#how-this-was-made)** at
+> the bottom. Read the CSS before you run it; it is 2 rules and they are
+> commented.
 
 ---
 
@@ -38,22 +39,28 @@ space ships a snippet to paste rather than something you install.
 
 ## What it does
 
-It detects your tab layout by itself. Nothing to configure or uncomment.
+This is for Firefox's newer sidebar with **vertical tabs** — tabs down the side.
 
-| Your layout | Sidebar/panel closed | Open |
+| Your layout | Sidebar closed | Sidebar open |
 |---|---|---|
-| **Vertical tabs** (tabs down the side) | entire toolbar gone — **0px** | 40px |
-| **Horizontal tabs** (the ordinary layout) | address bar gone, **tab strip kept at 44px** | 30px |
+| **Vertical tabs** (tabs down the side) | entire toolbar gone — **0px** | 30px |
+| **Anything else** | nothing happens | nothing happens |
 
 Those numbers are measured, not estimated — see [Verification](#verification).
 
-The horizontal case is deliberately gentler. With tabs along the top, your tabs
-live *in* the toolbar; an earlier draft hid the whole thing and produced a window
-with no tabs, no address bar and no menu. It looked like a broken browser. So on
-horizontal tabs it takes the address bar and stops there.
+**On ordinary tabs-along-the-top this file does nothing, deliberately.** Two
+earlier versions tried to cover that layout and got it wrong both times: one hid
+the tab strip along with the address bar, leaving a window that looked broken;
+the other collapsed the address bar *permanently* on vertical-tabs setups, so
+the tabs came back when you toggled and the toolbar never did. With tabs along
+the top they live inside the very bar being hidden, and there is no version of
+this that is both useful and safe there. Doing nothing is the honest answer.
 
-**If you have neither setup, nothing happens.** The file is inert rather than
-destructive, which is the behaviour you want from something a friend sent you.
+So the file is inert rather than destructive on a setup it cannot serve — which
+is what you want from something a friend sent you.
+
+To switch to vertical tabs: right-click the toolbar → Customize Toolbar →
+"Vertical tabs", or Settings → General → Browser Layout.
 
 ---
 
@@ -101,7 +108,7 @@ left behind, and it never blocks a Firefox update.
 
 ## How it works
 
-Three rules. All three are in the file with comments explaining them.
+Two rules, a pair. Both are in the file with comments explaining them.
 
 ```css
 /* 1. hide the toolbar when the sidebar is hidden */
@@ -114,10 +121,6 @@ Three rules. All three are in the file with comments explaining them.
   visibility: visible !important;
 }
 
-/* 3. horizontal tabs: hide only the address-bar row, keep the tabs */
-#navigator-toolbox:has(~ #browser > #sidebar-box[hidden]) #nav-bar {
-  visibility: collapse !important;
-}
 ```
 
 **Why it needs `:has()` at all.** Hiding the sidebar sets `hidden="true"` on
@@ -145,9 +148,12 @@ keyboard-focusable. `collapse` removes it from layout *and* from the keyboard �
 - **You cannot nest `:has()` inside `:has()`.** It is a syntax error, Firefox
   discards the whole rule silently, and the result looks exactly like "the tweak
   does nothing". This cost a debugging session.
-- **`#nav-bar` is *inside* the toolbox; `#browser` is outside it.** They are not
-  siblings, so `~` never reaches from one to the other. Rule 3 matches the
-  toolbox and then descends. The sibling form matched nothing at all.
+- **A rule on a child cannot undo `visibility` inherited from its parent.**
+  `visibility` inherits, so collapsing `#navigator-toolbox` collapses everything
+  in it. Trying to hide one row (`#nav-bar`) while the toolbox stays visible is
+  a different problem from hiding the toolbox, and an attempt at it shipped a
+  permanently-collapsed address bar. If you extend this, test the state where
+  the sidebar is OPEN and the legacy panel is CLOSED.
 
 ---
 
@@ -157,15 +163,20 @@ Tested on **Firefox 155.0.1** against two throwaway profiles — one vertical-ta
 one horizontal — driven over Firefox's remote debugging protocol, reading
 `getComputedStyle().visibility` and real element heights from the live chrome DOM.
 
-| Profile | State | `#navigator-toolbox` | `#nav-bar` | `#TabsToolbar` |
-|---|---|---|---|---|
-| Vertical | sidebar hidden | `collapse` 0px | `collapse` | `collapse` |
-| Vertical | sidebar shown | `visible` 40px | `visible` 40px | — |
-| Horizontal | panel closed | `visible` 45px | **`collapse`** | **`visible` 44px** |
-| Horizontal | panel open | `visible` 75px | `visible` 30px | `visible` 44px |
+| Profile | State | `#navigator-toolbox` | `#nav-bar` |
+|---|---|---|---|
+| Vertical | sidebar hidden | `collapse` 0px | `collapse` |
+| Vertical | sidebar shown | `visible` 30px | `visible` 30px |
+| Horizontal | panel closed | `visible` 40px | `visible` 40px |
+| Horizontal | panel open | `visible` 40px | `visible` 40px |
 
-Both round-trip cleanly over repeated toggles. Screenshots confirmed the
-horizontal case keeps a usable browser rather than a blank window.
+Four consecutive toggles, checked each time — the vertical case round-trips
+cleanly and the horizontal case is untouched in both states, which is the point.
+
+The state worth testing explicitly is **sidebar open, legacy panel closed** —
+the ordinary way a vertical-tabs window sits. An earlier version collapsed the
+address bar permanently there while the tab strip returned normally, which is
+exactly the "half of it comes back" bug this layout invites.
 
 ---
 
@@ -206,7 +217,7 @@ element — came from extracting Firefox's `omni.ja` and reading
 flag on the root window) is wrong, and assuming it would have produced a rule
 that never worked.
 
-**What the AI got wrong, three times:**
+**What the AI got wrong, four times:**
 
 1. The first "safe" version nested `:has()` inside `:has()`. That is invalid CSS.
    Firefox threw the entire rule away without a word, and the toolbar simply
@@ -216,8 +227,16 @@ that never worked.
    user's tabs along with it. It "worked" by every numeric measure and was still
    the wrong thing to ship. A screenshot showed a blank window, and the rule was
    rebuilt to target `#nav-bar` alone.
+3. That rebuilt rule then **shipped to the user's own machines and broke them.**
+   It keyed off `#sidebar-box[hidden]` with no guard, and on a vertical-tabs
+   setup that panel is hidden essentially always — so the address bar collapsed
+   permanently. Toggling brought the tab strip back and never the toolbar. It
+   had been "verified" on a fresh profile where the panel happened to be open,
+   a state that does not survive contact with real use. The user found it, not
+   the tests. The rule is gone now: this file does nothing on horizontal tabs
+   rather than something clever and wrong.
 
-3. Rolling this out to three machines, it reported one of them "deployed and
+4. Rolling this out to three machines, it reported one of them "deployed and
    verified" while every write had landed in a profile that machine never opens.
    `profiles.ini` listed that profile with `Default=1`, which looks decisive and
    is not — the `[Install…]` section names the profile Firefox actually launches.
@@ -225,7 +244,9 @@ that never worked.
    and meaningless. The check that found it was "which profile does the running
    process have open", read from `/proc/<pid>/fd`.
 
-All three were caught by *looking at the thing*, not by reasoning harder about it.
+Most were caught by *looking at the thing*, not by reasoning harder about it —
+and the one that was not (number 3) reached the user's machines because a test
+ran against a state real use does not produce.
 That is the honest lesson of this repo, and the reason the Verification section
 above reports measured pixel heights rather than "should work".
 
