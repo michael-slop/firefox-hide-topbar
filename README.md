@@ -14,7 +14,7 @@ file.
 > asking for it, choosing the behaviour, and confirming it worked on real
 > machines. The full story — including the bugs the AI shipped, one of which
 > reached those machines — is in **[How this was made](#how-this-was-made)** at
-> the bottom. Read the CSS before you run it; it is 2 rules and they are
+> the bottom. Read the CSS before you run it; it is 4 rules and they are
 > commented.
 
 ---
@@ -43,7 +43,7 @@ This is for Firefox's newer sidebar with **vertical tabs** — tabs down the sid
 
 | Your layout | Sidebar closed | Sidebar open |
 |---|---|---|
-| **Vertical tabs** (tabs down the side) | entire toolbar gone — **0px** | 30px |
+| **Vertical tabs** (tabs down the side) | entire toolbar gone — **0px** | 40px |
 | **Anything else** | nothing happens | nothing happens |
 
 Those numbers are measured, not estimated — see [Verification](#verification).
@@ -108,7 +108,8 @@ left behind, and it never blocks a Firefox update.
 
 ## How it works
 
-Two rules, a pair. Both are in the file with comments explaining them.
+Four rules. Two hide the toolbar; two repair what the collapse does to the
+address bar's own geometry. All four are in the file with comments explaining them.
 
 ```css
 /* 1. hide the toolbar when the sidebar is hidden */
@@ -121,6 +122,15 @@ Two rules, a pair. Both are in the file with comments explaining them.
   visibility: visible !important;
 }
 
+/* 3. the nav-bar loses its padding to the collapse; give it back */
+#nav-bar {
+  min-height: calc(var(--urlbar-height) + 8px) !important;
+}
+
+/* 4. and keep the address bar's own row when its dropdown opens */
+#urlbar[breakout-extend] .urlbar-input-container {
+  min-height: var(--urlbar-height) !important;
+}
 ```
 
 **Why it needs `:has()` at all.** Hiding the sidebar sets `hidden="true"` on
@@ -139,9 +149,24 @@ genuinely inside `#vertical-tabs`. Firefox *moves* that element rather than
 copying it, so its location is honest evidence.
 
 **Why `visibility: collapse`.** `display: none` makes Firefox rebuild the toolbox
-frame tree on every toggle. `height: 0` leaves descendants painting and still
-keyboard-focusable. `collapse` removes it from layout *and* from the keyboard —
-`Ctrl+L` goes inert while hidden, which is the point.
+frame tree on every toggle — tried, and it rearranged the toolbar buttons.
+`height: 0` leaves descendants painting and still keyboard-focusable. `collapse`
+removes it from layout *and* from the keyboard — `Ctrl+L` goes inert while
+hidden, which is the point.
+
+**Why rules 3 and 4 exist, and they are not optional.** The collapse has two
+after-effects that only show up once the toolbar is back:
+
+- The nav-bar returns **32px instead of 40** — its vertical padding does not come
+  back with the visibility. The address bar is 32px, so it no longer fits its own
+  container and Firefox centres it to `top: -1px`, *above* the row it lives in.
+- Worse, when the dropdown opens Firefox sets `breakout-extend` and the input row
+  — a flex child of a parent that now computes `display: block` — collapses to
+  **8px**. The suggestion list then starts at `y=8`, drawn on top of the text you
+  are typing.
+
+That second one is the "suggestions cover what I'm typing" bug. Measured:
+`input 0/8, view 8/391` before, `input 0/32, view 32/391` after.
 
 ### Two things that will bite you if you edit this
 

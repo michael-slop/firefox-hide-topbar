@@ -83,6 +83,56 @@
 }
 
 
+/* RULE 1c -- give the nav-bar its height back when the toolbar is shown.
+ *
+ * Collapsing the toolbox strips the nav-bar's vertical padding, and it does not
+ * come back with the visibility. Measured against a clean profile at the same
+ * window width: the nav-bar came back 32px instead of 40, so the 32px url bar
+ * had no room and Firefox centred it to top:-1px -- ABOVE its own container.
+ *
+ * That is what moved the address bar's dropdown. The panel is a popover in the
+ * top layer and anchors to the url bar's box, so a url bar sitting above its
+ * container puts the suggestion list over the page instead of under the bar.
+ *
+ * The height is derived from Firefox's own --urlbar-height (max(32px, 1.4em))
+ * plus the 4px above and below that the control profile has, so this follows a
+ * density or font-size change instead of pinning a magic 40.
+ *
+ * UNCONDITIONAL, and that is deliberate. The first attempt hung this off rule
+ * 1b's guard, which is a :not() that is FALSE on the vertical-tabs setups this
+ * file is for -- so it never matched and the nav-bar stayed 32px. A floor on
+ * the nav-bar's height is harmless when the toolbar is hidden (the toolbox is
+ * collapsed and nothing inside it has a box), so it does not need a guard.
+ */
+
+#nav-bar {
+  min-height: calc(var(--urlbar-height) + 8px) !important;
+}
+
+
+/* RULE 1d -- keep the address bar's own row when its dropdown opens.
+ *
+ * THIS IS THE ONE THAT FIXES THE SUGGESTION LIST COVERING WHAT YOU TYPE.
+ *
+ * When the dropdown opens, Firefox puts `breakout-extend` on #urlbar and grows
+ * it to hold the results. The input row is a flex child with `flex: 1 1 0%`,
+ * and with the toolbox collapsed its parent computes `display: block` -- so the
+ * flex basis buys nothing and the row collapses to EIGHT PIXELS. Measured on a
+ * live Firefox 155: input 0/8, results starting at y=8, i.e. the list drawn on
+ * top of the text being typed. That is the reported bug, exactly.
+ *
+ * A floor on the input row is enough; it does not need the parent's display
+ * changed, which is the more invasive way to get the same 32px.
+ *
+ *   before   urlbar 0/399   input 0/8    view 8/391
+ *   after    urlbar 0/423   input 0/32   view 32/391
+ */
+
+#urlbar[breakout-extend] .urlbar-input-container {
+  min-height: var(--urlbar-height) !important;
+}
+
+
 /* --------------------------------------------------------------------------
  * Notes, in case this stops working one day.
  *
